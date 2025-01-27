@@ -37,6 +37,10 @@ object SampleData {
         ),
         Message(
             "Lexi",
+            """夫婦喧嘩は犬も食わぬ""".trim()
+        ),
+        Message(
+            "Lexi",
             "Searching for alternatives to XML layouts..."
         ),
         Message(
