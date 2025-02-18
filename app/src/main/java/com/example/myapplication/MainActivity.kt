@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,15 +46,27 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.core.content.ContextCompat
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import coil.compose.rememberAsyncImagePainter
+import android.Manifest
+import android.content.Intent
+import androidx.core.app.ActivityCompat
+import com.example.androidhw.ui.theme.SensorService
 
 class MainActivity : ComponentActivity() {
+
+    private val NOTIFICATION_PERMISSION_REQUEST = 1001
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        checkAndRequestPermissions()
+
+
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -83,7 +97,57 @@ class MainActivity : ComponentActivity() {
 
         }
     }
+
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.BODY_SENSORS)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE_HEALTH) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE_HEALTH)
+                }
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            println("Requesting permissions: $permissionsToRequest")
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1)
+        } else {
+            println("All permissions are already granted.")
+            startSensorService()
+        }
+    }
+
+    private fun startSensorService() {
+        val serviceIntent = Intent(this, SensorService::class.java)
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+        }
+    }
 }
+
 data class Message(val author: String, val body: String)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
