@@ -56,6 +56,10 @@ import android.Manifest
 import android.content.Intent
 import androidx.core.app.ActivityCompat
 import com.example.androidhw.ui.theme.SensorService
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import androidx.compose.ui.platform.LocalContext
+
 
 class MainActivity : ComponentActivity() {
 
@@ -152,6 +156,10 @@ data class Message(val author: String, val body: String)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationPage(navController: NavController, userName: String, imageUri: Uri?) {
+    val context = LocalContext.current
+    var inputMessage by remember { mutableStateOf("") }
+    var messages by remember { mutableStateOf(loadMessages(context)) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -172,7 +180,43 @@ fun ConversationPage(navController: NavController, userName: String, imageUri: U
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Conversation(messages = SampleData.conversationSample, userName = userName, imageUri = imageUri)
+            Spacer(modifier = Modifier.height(16.dp))
+            BasicTextField(
+                value = inputMessage,
+                onValueChange = { inputMessage = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.primary)
+                    .padding(8.dp),
+                textStyle = MaterialTheme.typography.bodyLarge
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    if (inputMessage.isNotEmpty()) {
+                        val newMessage = Message(author = userName, body = inputMessage)
+                        messages = messages + newMessage
+                        inputMessage = ""
+                        saveMessages(context, messages)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text("Send")
+            }
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(messages) { message ->
+                    MessageCard(message, userName = userName, imageUri = imageUri)
+                }
+            }
         }
     }
 }
@@ -237,6 +281,7 @@ fun SettingsPage(navController: NavController,
                 modifier = Modifier.padding(8.dp),
                 textStyle = MaterialTheme.typography.headlineMedium
             )
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -315,12 +360,29 @@ fun MessageCard(msg: com.example.myapplication.Message, userName: String? = null
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-
         }
     }
-
-
 }
+
+fun saveMessages(context: Context, messages: List<Message>) {
+    val gson = Gson()
+    val json = gson.toJson(messages)
+    val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    sharedPreferences.edit().putString("messages", json).apply()
+}
+
+fun loadMessages(context: Context): List<Message> {
+    val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    val json = sharedPreferences.getString("messages", null)
+    return if (json != null) {
+        val gson = Gson()
+        val type = object : TypeToken<List<Message>>() {}.type
+        gson.fromJson(json, type)
+    } else {
+        emptyList()
+    }
+}
+
 @Preview(name = "Light mode")
 @Preview(
     uiMode = Configuration.UI_MODE_NIGHT_YES,
